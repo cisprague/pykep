@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
 
-
 class leg(object):
     """Indirect optimal control transcription trajectory leg.
 
@@ -119,7 +118,7 @@ class leg(object):
         else:
             self.freemass = bool(freemass)
             self.freetime = bool(freetime)
-            self.bound = bool(bound)
+            self.bound    = bool(bound)
 
         # equality constraint dimensionality
         if self.freemass and self.freetime:
@@ -171,8 +170,8 @@ class leg(object):
                 raise TypeError(
                     "x0 and xf must be instances of PyKEP.sims_flanagan.sc_state.")
             else:
-                self.x0 = np.asarray(x0.get(), np.float64)
-                self.xf = np.asarray(xf.get(), np.float64)
+                self.x0 = np.array(x0.get(), np.float64)
+                self.xf = np.array(xf.get(), np.float64)
 
             # check departure costate
             if not (isinstance(l0, list) or isinstance(l0, np.ndarray) or isinstance(l0, tuple)):
@@ -181,7 +180,7 @@ class leg(object):
             elif len(l0) != 7:
                 raise TypeError("Costate vector, l0, must be 7-dimensional.")
             else:
-                self.l0 = np.asarray(l0, np.float64)
+                self.l0 = np.array(l0, np.float64)
 
         # integrator
         self._integrator = ode(
@@ -240,17 +239,21 @@ class leg(object):
 
             # departure
             self.t0 = float(t0.mjd2000)
-            self.x0 = np.asarray(x0.get(), np.float64)
-            self.l0 = np.asarray(l0, np.float64)
+            self.x0 = np.array(x0.get(), np.float64)
+            self.l0 = np.array(l0, np.float64)
 
             # arrival
             self.tf = float(tf.mjd2000)
-            self.xf = np.asarray(xf.get(), np.float64)
+            self.xf = np.array(xf.get(), np.float64)
+
+            # clear trajectory history
+            self.times      = np.empty((1, 0), dtype=np.float64)
+            self.trajectory = np.empty((0, 14), dtype=np.float64)
 
     def _propagate(self, atol, rtol):
 
         # nondimensionalise departure state
-        x0       = np.copy(self.x0) #NOTE: very important
+        x0       = np.copy(self.x0)
         x0[0:3] /= self._dynamics.L
         x0[3:6] /= self._dynamics.V
         x0[6]   /= self._dynamics.M
@@ -271,7 +274,7 @@ class leg(object):
         self.trajectory = np.empty((0, 14), dtype=np.float64)
 
         # set integration method
-        self._integrator.set_integrator("dopri5", atol=atol, rtol=rtol)
+        self._integrator.set_integrator("dop853", atol=atol, rtol=rtol)
 
         # set recorder
         self._integrator.set_solout(self._recorder)
@@ -388,8 +391,8 @@ class leg(object):
         bvf = self.xf[3:6] / self._dynamics.V
 
         # propagated nondimensional arrival states
-        rf = self.trajectory[-1, 0:3]
-        vf = self.trajectory[-1, 3:6]
+        rf = np.copy(self.trajectory[-1, 0:3])
+        vf = np.copy(self.trajectory[-1, 3:6])
 
         # nondimensional position and velocity arrival mismatch
         drf = rf - brf
@@ -397,7 +400,7 @@ class leg(object):
 
         # free arrival mass
         if self.freemass:
-            lmf = self.trajectory[-1, 13]
+            lmf = np.copy(self.trajectory[-1, 13])
         # fixed arrival mass
         else:
             dmf = self.trajectory[-1, 6] - self.xf[6] / self._dynamics.M
@@ -494,14 +497,14 @@ class leg(object):
         # mjd2000 times
         t /= 24 * 60 * 60
         # reshape
-        t = self.times.reshape(t.size, 1)
+        t = t.reshape(t.size, 1)
 
         # controls
-        u = np.asarray([self._dynamics._pontryagin(fs)
+        u = np.array([self._dynamics._pontryagin(fs)
                         for fs in self.trajectory])
 
         # get Hamiltonian
-        H = np.asarray([self._dynamics._hamiltonian(fs)
+        H = np.array([self._dynamics._hamiltonian(fs)
                         for fs in self.trajectory])
         H = H.reshape(H.size, 1)
 
